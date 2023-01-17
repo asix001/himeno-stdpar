@@ -43,9 +43,7 @@
 #include <algorithm>
 #include <chrono>
 #include <execution>
-// #include <iostream>
 #include <numeric>
-#include <vector>
 
 #define SEQ std::execution::seq,
 #define PAR std::execution::par,
@@ -81,7 +79,6 @@
 #define MKMAX            1025
 #endif
 
-double second();
 float jacobi(int nn, float (*a)[MIMAX][MJMAX][MKMAX], 
                      float(*b)[MIMAX][MJMAX][MKMAX], 
                      float (*c)[MIMAX][MJMAX][MKMAX], 
@@ -89,6 +86,7 @@ float jacobi(int nn, float (*a)[MIMAX][MJMAX][MKMAX],
                      float (*bnd)[MJMAX][MKMAX], 
                      float(*wrk1)[MJMAX][MKMAX], 
                      float (*wrk2)[MJMAX][MKMAX]);
+
 void initmt(float (*a)[MIMAX][MJMAX][MKMAX], 
             float(*b)[MIMAX][MJMAX][MKMAX], 
             float (*c)[MIMAX][MJMAX][MKMAX], 
@@ -96,25 +94,48 @@ void initmt(float (*a)[MIMAX][MJMAX][MKMAX],
             float (*bnd)[MJMAX][MKMAX], 
             float(*wrk1)[MJMAX][MKMAX], 
             float (*wrk2)[MJMAX][MKMAX]);
+
 double fflop(int,int,int);
 double mflops(int,double,double);
+double second();
 
-// static float  p[MIMAX][MJMAX][MKMAX];
-// static float  a[4][MIMAX][MJMAX][MKMAX],
-//               b[3][MIMAX][MJMAX][MKMAX],
-//               c[3][MIMAX][MJMAX][MKMAX];
-// static float  bnd[MIMAX][MJMAX][MKMAX];
-// static float  wrk1[MIMAX][MJMAX][MKMAX],
-//               wrk2[MIMAX][MJMAX][MKMAX];
+/* FROM BABEL STREAM */
+// A lightweight counting iterator which will be used by the STL algorithms
+// NB: C++ <= 17 doesn't have this built-in, and it's only added later in ranges-v3 (C++2a) which this
+// implementation doesn't target
+template <typename N>
+class ranged 
+{
+  N from, to;
+public:
+  ranged(N from, N to ): from(from), to(to) {}
+    class iterator {
+      N num;
+    public:
+      using difference_type = N;
+      using value_type = N;
+      using pointer = const N*;
+      using reference = const N&;
+      using iterator_category = std::random_access_iterator_tag;
+      explicit iterator(N _num = 0) : num(_num) {}
 
-// auto a = new float [4][MIMAX][MJMAX][MKMAX];
-// auto b = new float [3][MIMAX][MJMAX][MKMAX];
-// auto c = new float [3][MIMAX][MJMAX][MKMAX];
+      iterator& operator++() { num++; return *this; }
+      iterator operator++(int) { iterator retval = *this; ++(*this); return retval; }
+      iterator operator+(const value_type v) const { return iterator(num + v); }
 
-// auto p = new float [MIMAX][MJMAX][MKMAX];
-// auto bnd = new float [MIMAX][MJMAX][MKMAX];
-// auto wrk1 = new float [MIMAX][MJMAX][MKMAX];
-// auto wrk2 = new float [MIMAX][MJMAX][MKMAX];
+      bool operator==(iterator other) const { return num == other.num; }
+      bool operator!=(iterator other) const { return *this != other; }
+      bool operator<(iterator other) const { return num < other.num; }
+
+      reference operator*() const { return num;}
+      difference_type operator-(const iterator &it) const { return num - it.num; }
+      value_type operator[](const difference_type &i) const { return num + i; }
+
+    };
+    iterator begin() { return iterator(from); }
+    iterator end() { return iterator(to >= from? to+1 : to-1); }
+};
+/*********************/
 
 int main()
 {
@@ -132,7 +153,6 @@ int main()
   double cpu,cpu0,cpu1,flop,target;
 
   target = 60.0;
-
 
   /*
    *    Initializing matrixes
@@ -188,14 +208,7 @@ void initmt(float (*a)[MIMAX][MJMAX][MKMAX],
             float(*wrk1)[MJMAX][MKMAX], 
             float (*wrk2)[MJMAX][MKMAX])
 {
-	// int i,j,k;
-
-  // for(i=0 ; i<MIMAX ; i++)
-  //   for(j=0 ; j<MJMAX ; j++)
-  //     for(k=0 ; k<MKMAX ; k++){
-  const int M = (MIMAX) * (MJMAX) * (MKMAX);
-  std::vector <int> range_m(M);
-  std::iota(range_m.begin(), range_m.end(), 0);
+  ranged<int> range_m(0,(MIMAX) * (MJMAX) * (MKMAX));
 
   std::for_each(PAR_UNSEQ range_m.begin(), range_m.end(), [=](int ijk) 
   {
@@ -218,16 +231,9 @@ void initmt(float (*a)[MIMAX][MJMAX][MKMAX],
       wrk1[i][j][k]=0.0;
       bnd[i][j][k]=0.0;
     });
-// }
 
-  // for(i=0 ; i<MIMAX - 1 ; i++)
-  //   for(j=0 ; j<MJMAX - 1 ; j++)
-  //     for(k=0 ; k<MKMAX - 1 ; k++)
-  //     {
-  const int N = (MIMAX - 1) * (MJMAX - 1) * (MKMAX - 1);
-  std::vector <int> range_n(N);
-  std::iota(range_n.begin(), range_n.end(), 0);
-  
+  ranged<int> range_n(0,(MIMAX - 1) * (MJMAX - 1) * (MKMAX - 1));
+
   std::for_each(PAR_UNSEQ range_n.begin(), range_n.end(), [=](int ijk) 
   {
     int i = ijk / ((MJMAX - 1) * (MKMAX - 1));
@@ -248,7 +254,6 @@ void initmt(float (*a)[MIMAX][MJMAX][MKMAX],
       p[i][j][k]=(float)(i*i)/(float)((MIMAX - 1-1)*(MIMAX - 1-1));
       wrk1[i][j][k]=0.0;
       bnd[i][j][k]=1.0;
-    // }
   });
 }
 
@@ -261,15 +266,13 @@ float jacobi(int nn, float (*a)[MIMAX][MJMAX][MKMAX],
                      float (*wrk2)[MJMAX][MKMAX])
 {
   float gosa;
-
-  const int M = (MIMAX - 1-2) * (MJMAX - 1-2) * (MKMAX - 1-2);
-  std::vector <int> range(M);
-  std::iota(range.begin(), range.end(), 0);
+  ranged<int> range(0,(MIMAX - 1-2) * (MJMAX - 1-2) * (MKMAX - 1-2));
 
  for(int n=0 ; n<nn ; ++n)
  {
     gosa = 0.0;
     
+    /* WRITE TO FILE */
     // FILE *f;
     // f = fopen("/home/asia/research/himeno/stdpar/idx1.txt", "w");
     // if(f == NULL)
@@ -278,40 +281,38 @@ float jacobi(int nn, float (*a)[MIMAX][MJMAX][MKMAX],
     //     exit(1);             
     // }
 
-    //for(int ijk = 0; ijk < M; ijk++)
     gosa = std::transform_reduce(PAR_UNSEQ range.begin(), range.end() , 0.0, std::plus{}, [=](int ijk)
     {
-        int i = ijk / ((MJMAX - 1-2) * (MKMAX - 1-2)) + 1;
-        int jk = ijk % ((MJMAX - 1-2)*(MKMAX - 1-2));
-        int j = jk / (MKMAX - 1-2) + 1;
-        int k = jk % (MKMAX - 1-2) + 1;
-        // fprintf(f, "%d %d %d\n", i,j,k);
-        
-        float s0, ss;
-        float omega = 0.8;
+      int i = ijk / ((MJMAX - 1-2) * (MKMAX - 1-2)) + 1;
+      int jk = ijk % ((MJMAX - 1-2)*(MKMAX - 1-2));
+      int j = jk / (MKMAX - 1-2) + 1;
+      int k = jk % (MKMAX - 1-2) + 1;
+      // fprintf(f, "%d %d %d\n", i,j,k);
 
-        s0 = a[0][i][j][k] * p[i+1][j  ][k  ]
-            + a[1][i][j][k] * p[i  ][j+1][k  ]
-            + a[2][i][j][k] * p[i  ][j  ][k+1]
-            + b[0][i][j][k] * ( p[i+1][j+1][k  ] - p[i+1][j-1][k  ]
-                            - p[i-1][j+1][k  ] + p[i-1][j-1][k  ] )
-            + b[1][i][j][k] * ( p[i  ][j+1][k+1] - p[i  ][j-1][k+1]
-                            - p[i  ][j+1][k-1] + p[i  ][j-1][k-1] )
-            + b[2][i][j][k] * ( p[i+1][j  ][k+1] - p[i-1][j  ][k+1]
-                            - p[i+1][j  ][k-1] + p[i-1][j  ][k-1] )
-            + c[0][i][j][k] * p[i-1][j  ][k  ]
-            + c[1][i][j][k] * p[i  ][j-1][k  ]
-            + c[2][i][j][k] * p[i  ][j  ][k-1]
-            + wrk1[i][j][k];
+      float omega = 0.8;
+      float s0, ss;
 
-        ss = ( s0 * a[3][i][j][k] - p[i][j][k] ) * bnd[i][j][k];
-        wrk2[i][j][k] = p[i][j][k] + omega * ss;
+      s0 = a[0][i][j][k] * p[i+1][j  ][k  ]
+          + a[1][i][j][k] * p[i  ][j+1][k  ]
+          + a[2][i][j][k] * p[i  ][j  ][k+1]
+          + b[0][i][j][k] * ( p[i+1][j+1][k  ] - p[i+1][j-1][k  ]
+                          - p[i-1][j+1][k  ] + p[i-1][j-1][k  ] )
+          + b[1][i][j][k] * ( p[i  ][j+1][k+1] - p[i  ][j-1][k+1]
+                          - p[i  ][j+1][k-1] + p[i  ][j-1][k-1] )
+          + b[2][i][j][k] * ( p[i+1][j  ][k+1] - p[i-1][j  ][k+1]
+                          - p[i+1][j  ][k-1] + p[i-1][j  ][k-1] )
+          + c[0][i][j][k] * p[i-1][j  ][k  ]
+          + c[1][i][j][k] * p[i  ][j-1][k  ]
+          + c[2][i][j][k] * p[i  ][j  ][k-1]
+          + wrk1[i][j][k];
 
-        return ss*ss;
+      ss = ( s0 * a[3][i][j][k] - p[i][j][k] ) * bnd[i][j][k];
+      wrk2[i][j][k] = p[i][j][k] + omega * ss;
+
+      return ss*ss;
     });
     // fclose(f);
 
-    //for(int ijk = 0; ijk < M; ijk++)
     std::for_each(PAR_UNSEQ range.begin(), range.end(), [=](int ijk) 
     {
       int i = ijk / ((MJMAX - 1-2) * (MKMAX - 1-2)) + 1;
@@ -354,3 +355,5 @@ double second()
 }
 
 // nvc++ -O3 -std=c++17 -stdpar=gpu -DLARGE himenoBMTxps.cpp -o himenoBMTxps && ./himenoBMTxps
+// nvc++ -O3 -std=c++17 -stdpar=gpu -DMIDDLE himenoBMTxps.cpp -o himenoBMTxps && ./himenoBMTxps
+// nvc++ -O3 -std=c++17 -stdpar=gpu -DSMALL himenoBMTxps.cpp -o himenoBMTxps && ./himenoBMTxps
