@@ -99,7 +99,7 @@ double fflop(int,int,int);
 double mflops(int,double,double);
 double second();
 
-/* FROM BABEL STREAM */
+/* From BabelStream */
 // A lightweight counting iterator which will be used by the STL algorithms
 // NB: C++ <= 17 doesn't have this built-in, and it's only added later in ranges-v3 (C++2a) which this
 // implementation doesn't target
@@ -174,8 +174,6 @@ int main()
   
   printf(" MFLOPS: %f time(s): %f %e\n\n",
          mflops(nn,cpu,flop),cpu,gosa);
-
-  // return 0; // for profiling
 
   nn = 2000;//(int)(target/(cpu/3.0));
   printf(" Now, start the actual measurement process.\n");
@@ -272,15 +270,6 @@ float jacobi(int nn, float (*a)[MIMAX][MJMAX][MKMAX],
  for(int n=0 ; n<nn ; ++n)
  {
     gosa = 0.0;
-    
-    /* WRITE TO FILE */
-    // FILE *f;
-    // f = fopen("/home/asia/research/himeno/stdpar/idx1.txt", "w");
-    // if(f == NULL)
-    // {
-    //     printf("Error!");   
-    //     exit(1);             
-    // }
 
     // REDUCTION
     gosa = std::transform_reduce(PAR_UNSEQ range.begin(), range.end() , 0.0, std::plus{}, [=](int ijk) 
@@ -289,7 +278,6 @@ float jacobi(int nn, float (*a)[MIMAX][MJMAX][MKMAX],
       int jk = ijk % ((MJMAX - 1-2)*(MKMAX - 1-2));
       int j = jk / (MKMAX - 1-2) + 1;
       int k = jk % (MKMAX - 1-2) + 1;
-      // fprintf(f, "%d %d %d\n", i,j,k);
 
       float omega = 0.8;
       float s0, ss;
@@ -313,7 +301,6 @@ float jacobi(int nn, float (*a)[MIMAX][MJMAX][MKMAX],
 
       return ss*ss;
     });
-    // fclose(f);
 
     std::for_each(PAR_UNSEQ range.begin(), range.end(), [=](int ijk) 
     {
