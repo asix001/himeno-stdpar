@@ -30,10 +30,10 @@
  Vectorizable and parallelizable on each grid point
  No. of grid points : MIMAX - 1 x MJMAX - 1 x MKMAX - 1 including boundaries
  ------------------
- A,B,C:coefficient matrix, wrk1: source term of Poisson equation
+ A,B,C : coefficient matrix, wrk1: source term of Poisson equation
  wrk2 : working area, OMEGA : relaxation parameter
- BND:control variable for boundaries and objects ( = 0 or 1)
- P: pressure
+ BND : control variable for boundaries and objects ( = 0 or 1)
+ P : pressure
 ********************************************************************/
 
 #include <cmath>
